@@ -92,16 +92,39 @@ function getMessageId(entry: JournalEntry): string | null {
   return msg?.id ?? null
 }
 
+function positiveNumber(n: number | undefined): number {
+  return n !== undefined && Number.isFinite(n) && n > 0 ? n : 0
+}
+
+function extractClaudeCacheCreation(usage: AssistantMessageContent['usage']): { totalTokens: number; oneHourTokens: number } {
+  const legacyTotal = positiveNumber(usage.cache_creation_input_tokens)
+  const cacheCreation = usage.cache_creation
+  const fiveMinuteTokens = positiveNumber(cacheCreation?.ephemeral_5m_input_tokens)
+  const oneHourTokens = positiveNumber(cacheCreation?.ephemeral_1h_input_tokens)
+  const splitTotal = fiveMinuteTokens + oneHourTokens
+
+  if (splitTotal === 0) return { totalTokens: legacyTotal, oneHourTokens: 0 }
+
+  // Valid Claude usage reports the legacy total and split total as equal.
+  // Keep the larger value so malformed partial splits do not drop tokens.
+  const totalTokens = Math.max(legacyTotal, splitTotal)
+  return {
+    totalTokens,
+    oneHourTokens: Math.min(oneHourTokens, totalTokens),
+  }
+}
+
 function parseApiCall(entry: JournalEntry): ParsedApiCall | null {
   if (entry.type !== 'assistant') return null
   const msg = entry.message as AssistantMessageContent | undefined
   if (!msg?.usage || !msg?.model) return null
 
   const usage = msg.usage
+  const cacheCreation = extractClaudeCacheCreation(usage)
   const tokens: TokenUsage = {
     inputTokens: usage.input_tokens ?? 0,
     outputTokens: usage.output_tokens ?? 0,
-    cacheCreationInputTokens: usage.cache_creation_input_tokens ?? 0,
+    cacheCreationInputTokens: cacheCreation.totalTokens,
     cacheReadInputTokens: usage.cache_read_input_tokens ?? 0,
     cachedInputTokens: 0,
     reasoningTokens: 0,
@@ -118,6 +141,7 @@ function parseApiCall(entry: JournalEntry): ParsedApiCall | null {
     tokens.cacheReadInputTokens,
     tokens.webSearchRequests,
     usage.speed ?? 'standard',
+    cacheCreation.oneHourTokens,
   )
 
   const bashCmds = extractBashCommandsFromContent(msg.content ?? [])

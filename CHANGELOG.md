@@ -3,13 +3,14 @@
 ## Unreleased
 
 ### Added (CLI)
-- **IBM Bob provider.** CodeBurn now discovers IBM Bob IDE task history from
-  `User/globalStorage/ibm.bob-code/tasks/<task-id>/` under both the GA
-  `IBM Bob` application data folder and preview-era `Bob-IDE` folder. The
-  provider reuses the Cline-family `ui_messages.json` parser for token/cost
-  records, reads `api_conversation_history.json` for model tags when present,
-  falls back to `ibm-bob-auto` pricing otherwise, and appears in CLI,
-  dashboard, JSON, docs, and the macOS provider tabs. Closes #248.
+- **IBM Bob provider.** Discovers IBM Bob IDE task history, reuses the
+  Cline-family parser for token/cost records, extracts model tags and
+  workspace-based project names from session data. Closes #248.
+
+### Fixed (CLI)
+- **Claude 1-hour cache write pricing.** 1-hour cache writes are now priced
+  at 2x base input (previously used the 5-minute 1.25x rate for all writes).
+  Daily cache bumped to v6 so stale totals are recomputed. Closes #276.
 
 ## 0.9.8 - 2026-05-10
 
